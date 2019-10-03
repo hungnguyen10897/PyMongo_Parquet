@@ -8,7 +8,7 @@ import argparse
 import configparser
 import os
 
-from actions import find, export, delete, drop, ingest
+from operations import find, export, delete, drop, ingest
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
