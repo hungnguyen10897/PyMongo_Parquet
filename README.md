@@ -32,6 +32,11 @@ This module uses [pyarrow](https://pypi.org/project/pyarrow/) to deal with parqu
 
 ```pip install pyarrow```
 
+or using requirements.txt file from the repo
+
+```pip install -r requirements.txt```
+
+
 ## How to use
 
 This can be used either as a command line python script or as a module in another python script.
@@ -123,26 +128,33 @@ python mongodb_gridfs_operator.py -f config.cfg -a find
 11.  REPL_TCURR_G4_1569805874
 12.  REPL_VBUP_G4_1569805604
 ```
+
 <br/>
 <br/>
+
   To export files with names of pattern 'G4' into Compass for viewing
+  
 ```
 python mongodb_gridfs_operator.py -f config.cfg -a export -e compass -p .*G4.*
 ```
-MongoDB comes with Compass, a visual tool to view your data. However, only the metadata makes sense in Compass since we store the actual data in form of binary of parquet files. The collection containing metadata is: your_database_name / your_bucket_name / files. In my case, myDB/fs/files:
+MongoDB comes with [Compass](https://www.mongodb.com/products/compass), a visual/ analytic tool to view your data. However, only the metadata makes sense in Compass since we store the actual data in form of binary of parquet files. The collection containing metadata is: your_database_name/ your_bucket_name/ files. In my case, myDB/ fs/ files:
 
-/////IMAGE HERE
+![alt text](https://github.com/hungnguyen10897/PyMongo_Parquet/blob/master/Images/Capture0.PNG "Compass capture 1")
+<br/>
+<br/>
 <br/>
 <br/>
   To view these data, export action with (-e compass) will add these snapshots to the current MongoDB database as collections containing the actual data which can be meaningfully viewed through Compass.
 
-/////IMAGE HERE
+![alt text](https://github.com/hungnguyen10897/PyMongo_Parquet/blob/master/Images/Capture1.PNG "Compass capture 2")
+<br/>
+<br/>
 <br/>
 <br/>
   To delete all these temporary snapshots on MongoDB which are only meant to be viewed on Compass
 
 ```
-python -f config.cfg -a delete -p .*
+python mongodb_gridfs_operator.py -f config.cfg -a delete -p .*
 ```
 
 Now the database no longer contains the temporary snapshots.  
@@ -152,7 +164,7 @@ Now the database no longer contains the temporary snapshots.
   To permanently drop files of certain pattern
 
 ```
-python -f config.cfg -a drop -p .*G0.*
+python mongodb_gridfs_operator.py -f config.cfg -a drop -p .*G0.*
 ```
 
 <br/>
@@ -160,7 +172,7 @@ python -f config.cfg -a drop -p .*G0.*
   To ingest some csv files with a certain pattern in a directory, we pass that directory path to -s/ --source option.
   
 ```
-python -f config.cfg -a ingest -s /home/hung/csv_folder -p .*G0.*
+python mongodb_gridfs_operator.py -f config.cfg -a ingest -s /home/hung/csv_folder -p .*G0.*
 ```
 
 ## Further Improvement
@@ -172,7 +184,8 @@ python -f config.cfg -a ingest -s /home/hung/csv_folder -p .*G0.*
 
 - Develop more functionalites to add more metadata to the files and ability to query the files according to metadata.
 
-# Note: In this README, files/ snapshots/ tables are used interchangeably.
+
+### Note: In this README, the terms "files", "snapshots" and "tables" are used interchangeably.
 
 
 
