@@ -7,6 +7,7 @@ import re
 import pandas as pd
 
 def find(db, bucket, pattern='.*'):
+    i = 0
     res = db[bucket].files.find({"_id" : {'$regex' : pattern}},projection = {"_id": 1})
     list_res = list(map( lambda x: list(x.values())[0].split('.')[0], res))
     for file in list_res:
