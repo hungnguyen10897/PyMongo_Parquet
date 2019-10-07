@@ -34,7 +34,7 @@ def find(db, bucket, pattern='.*', target_directory=os.getcwd(), limit=None, tak
 
     return list_res
 
-def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), limit=None, sort='asc'):
+def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), limit=None, take_empty = True, sort='asc'):
     """
     Return:
         If export_format is 'df', a list of pandas Dataframes and a list of filenames are returned.
@@ -46,7 +46,7 @@ def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), l
     if export_format in ['df', 'compass'] and not os.path.exists(target_directory):
         target_directory = os.getcwd()
 
-    filenames = find(db, bucket, pattern, limit, sort)
+    filenames = find(db, bucket, pattern, limit= limit, take_empty= take_empty, sort= sort)
     fs = GridFS(db, collection= bucket)
     dfs = []
     for filename in filenames:
