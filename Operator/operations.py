@@ -37,7 +37,7 @@ def find(db, bucket, pattern='.*', target_directory=os.getcwd(), limit=None, tak
 def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), limit=None, take_empty = True, sort='asc'):
     """
     Return:
-        If export_format is 'df', a list of pandas Dataframes and a list of filenames are returned.
+        If export_format is 'df', a list of tuples of type (filename, DataFrame) are returned.
         Otherwise,  nothing is returned.
     """
 
@@ -77,7 +77,7 @@ def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), l
             os.remove(official_filename)
     
     if export_format == "df":
-        return (dfs, filenames)
+        return list(zip(filenames, dfs))
 
 def delete(db, bucket, pattern):
     filenames = find(db, bucket, pattern)
