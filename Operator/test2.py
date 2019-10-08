@@ -6,8 +6,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                         description= """
                         Query tool for MongoDB GridFS. 
-                        -------------------------------------
-                        Specify operation to perform with argument -o (--operation):
+
+
+                        """)
+
+    subparsers = ap.add_subparsers(help = 'sub-command help', description= """                        Specify operation to perform with argument -o (--operation):
                             - find: to print/get a list of filenames in database. Optionally, provide -p option to specify a pattern according to which matching files are listed. If -p is not provided, all files will be listed. 
 
                             - export: export files from MongodDB GridFS. Upon choosing this operation, provide -e option to specify exported file format, as well as -p option to specify a pattern  according to which matching files are exported
@@ -19,18 +22,15 @@ if __name__ == "__main__":
 
                             - ingest: ingest a list of parquet/csv files in a directory into the Database. Upon choosing this operation, provide -s option to specify a directory containing the files. 
                             An optional argument -p can be provided to specify a pattern so that only parquet/csv files matching the pattern will be ingested. All parquet/csv files will be ingested 
-                            if -p option is not provided. If csv files are used for ingestion, all columns are of type str.
-                        """)
+                            if -p option is not provided. If csv files are used for ingestion, all columns are of type str.""")
 
-    subparsers = ap.add_subparsers(help = 'sub-command help')
-
-    parser_a = subparsers.add_parser("a", help = "a help")
-    parser_a.add_argument('-f', '--foo', required=True)
+    parser_find = subparsers.add_parser("find", help = "a help")
+    parser_export = subparsers.add_parser("export", help = "a help")
 
     args = vars(ap.parse_args())
 
 
-    
+
     # ap.add_argument("-c", "--connection_string",
     #                 help="Connection string to MongoDB Server. This overrides the connection string in the configuration file (--configuration) if provided.")
 
