@@ -51,8 +51,8 @@ if __name__ == "__main__":
 
     ap.add_argument("-p", "--pattern", help="Specify pattern (Python regex) for actions 'find'/'export'/'drop'/'delete'. The regex used here is different from that used in Mongo shell and Compass.")
 
-    ap.add_argument("-e", "--export_format", choices=['csv', 'parquet', 'compass', 'df'], 
-                    help="Specify the format for actions 'export': csv, parquet, compass(to view file on MongoDB Compass)")
+    ap.add_argument("-e", "--export_format", choices=['csv', 'parquet', 'compass', 'df', 'mssql'], 
+                    help="Specify the format for actions 'export': csv, parquet, compass (to view file on MongoDB Compass), df (a list of dfs and filenames, to be used in other script) or mssql (create table in MSSQL Server)")
                 
     ap.add_argument("-t", "--target_directory",
                     help="Specify the target directory to dump csv/parquet files for actions 'export', default is the module source directory.")
@@ -122,8 +122,18 @@ if __name__ == "__main__":
         if target_directory is None:
             target_directory = os.getcwd()
         export_format = args['export_format']
+        db_args = {}
+        if export_format == 'mssql':
+            from database_ingestion_pluggins.mssql_ingestion import mssql_ingest
+            db_args =   {
+                    "mssql_conn_str" : config['MSSQL_INGESTION']['mssql_conn_str'],
+                    "database_name" : config['MSSQL_INGESTION']['database_name'],
+                    "schema" : config['MSSQL_INGESTION']['schema'],
+                    "concurrency" : True if config['MSSQL_INGESTION']['concurrency'] == 'True' else False,
+                    "ingest_function" : mssql_ingest
+                    }
         pattern = args['pattern']
-        export(db, bucket, export_format, pattern, target_directory)
+        export(db, bucket, export_format, pattern, target_directory, **db_args)
 
     elif action == 'delete':
         pattern = args['pattern']
@@ -137,9 +147,3 @@ if __name__ == "__main__":
         source = args['source']
         pattern = args['pattern'] if args['pattern'] is not None else '.*'
         ingest(db, bucket, source, pattern)
-
-
-
-
-
-

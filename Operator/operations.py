@@ -34,12 +34,21 @@ def find(db, bucket, pattern='.*', target_directory=os.getcwd(), limit=None, tak
 
     return list_res
 
-def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), limit=None, take_empty = True, sort='asc'):
+def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), limit=None, take_empty = True, sort='asc', **kwargs):
     """
     Return:
         If export_format is 'df', a list of tuples of type (filename, DataFrame) are returned.
         Otherwise,  nothing is returned.
     """
+    dest_db = ''
+    if export_format == "mssql":
+        export_format = 'df'
+        dest_db = 'mssql'
+        mssql_conn_str = kwargs['mssql_conn_str']
+        database_name = kwargs['database_name']
+        schema = kwargs['schema']
+        concurrency = kwargs['concurrency']
+        mssql_ingest = kwargs['ingest_function']
 
     if export_format in ['parquet','csv'] and not os.path.exists(target_directory):
         raise OSError(f"Target directory '{target_directory}' not found.")
@@ -77,12 +86,18 @@ def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), l
             os.remove(official_filename)
     
     if export_format == "df":
-        return list(zip(filenames, dfs))
+        dfs = list(zip(filenames, dfs))
+        if dest_db == '':
+            return dfs
+        elif dest_db == 'mssql':
+            mssql_ingest(dfs, mssql_conn_str, database_name, schema, concurrency)
+
 
 def delete(db, bucket, pattern):
     filenames = find(db, bucket, pattern)
     for filename in filenames:
         db.drop_collection(filename)
+
 
 def drop(db, bucket, pattern):
     filenames = find(db, bucket, pattern)
