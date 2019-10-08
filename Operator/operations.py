@@ -29,6 +29,8 @@ def find(db, bucket, pattern='.*', limit=None, take_empty=True, sort='asc', prin
     list_res = list(map( lambda x: list(x.values())[0].split('.')[0], res))
 
     if print_output:
+        if len(list_res) == 0:
+            print("No files found.")
         for file in list_res:
             print("{:5}".format(str(i)+".") + file)
             i+=1
@@ -41,6 +43,7 @@ def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), l
         If export_format is 'df', a list of tuples of type (filename, DataFrame) are returned.
         Otherwise,  nothing is returned.
     """
+    print(f"Exporting these snapshots from MongoDB GridFS {db.name}.{bucket}:")
     dest_db = ''
     if export_format == "mssql":
         export_format = 'df'
@@ -56,9 +59,10 @@ def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), l
     if export_format in ['df', 'compass'] and not os.path.exists(target_directory):
         target_directory = os.getcwd()
 
-    filenames = find(db, bucket, pattern, limit= limit, take_empty= take_empty, sort= sort)
+    filenames = find(db, bucket, pattern, limit= limit, take_empty= take_empty, sort= sort, print_output= False)
     fs = GridFS(db, collection= bucket)
     dfs = []
+    i=1
     for filename in filenames:
         
         official_filename = os.path.join(target_directory, filename + '.parquet')
@@ -85,7 +89,10 @@ def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), l
         #delete parquet file
         if export_format != 'parquet':
             os.remove(official_filename)
-    
+
+        print("{:5}".format(str(i)+".") + f"{filename}")
+        i+=1
+
     if export_format == "df":
         dfs = list(zip(filenames, dfs))
         if dest_db == '':
@@ -101,49 +108,61 @@ def delete(db, bucket, pattern, limit = None):
     i = 1
     for filename in filenames:
         if filename in collections:
-            print("{:5}".format(str(i)+".") + f"{filename}")
             db.drop_collection(filename)
+            print("{:5}".format(str(i)+".") + f"{filename}")
             i+=1
 
 
 def drop(db, bucket, pattern, limit = None):
-    print(f"Permanently dropping these snapshots from MongoDB GridFS {db.name}.{bucket.bucket_name}:")
-    filenames = find(db, bucket, pattern, limit = limit, print_output= True)
+    print(f"Permanently dropping these snapshots from MongoDB GridFS {db.name}.{bucket}:")
+    filenames = find(db, bucket, pattern, limit = limit, print_output= False)
+    i = 1
     for filename in filenames:
         fs = GridFS(db, collection= bucket)
         fs.delete(filename)
+        print("{:5}".format(str(i)+".") + f"{filename}")
+        i+=1
 
 def ingest(db, bucket, source, pattern='.*', name_list=None):
     """
 
     If source is a directory, only the files in root directory are scanned and ingested.
     """
+    
     fs = GridFS(db, collection= bucket)
     
     #if source is a list of pandas DataFrames
     if type(source) ==  list:
+        print(f"Ingesting from a list of DataFrames- length: {len(source)}")
         try:
             if name_list is None or len(name_list) != len(source):
                 raise Exception("List of names to be stored either is not provided or does not have the same length as the list of DataFrames.")
 
+            i = 1
             for df,filename in zip(source, name_list):
                 if type(df) != pd.core.frame.DataFrame:
                     raise Exception("Element of source list needs to be of type DataFrame")
 
-                table = pa.Table.from_pandas(df)
-                pq.write_table(table, f'{filename}.parquet')
-                fs.put(open(f'{filename}.parquet', 'rb'), _id = f'{filename}', rows =  df.shape[0])
-                os.remove(f'{filename}.parquet')
+                if fs.exists(_id=f'{filename}'):
+                        print(f"Skipping DataFrame with name {filename}")
+                else:
+                    table = pa.Table.from_pandas(df)
+                    pq.write_table(table, f'{filename}.parquet')
+                    fs.put(open(f'{filename}.parquet', 'rb'), _id = f'{filename}', rows =  df.shape[0])
+                    os.remove(f'{filename}.parquet')
+                    print("{:5}".format(str(i)+".") + f"{filename}")
+                    i+=1
 
         except  Exception as e:
             print(str(e))        
 
     #if source is a directory containing parquet/csv files
     elif type(source) == str:
+        print(f"Ingesting files from a directory ('{source}'):")
         try:
             for root, _, files in os.walk(source):
+                i = 1
                 for file in files:
-                    
                     absolute_file = os.path.join(root, file)
                     filename = file.split('.')[0]
                     extension = file.split('.')[-1]
@@ -167,6 +186,10 @@ def ingest(db, bucket, source, pattern='.*', name_list=None):
                             with open(f'{filename}.parquet', 'rb') as f:
                                 fs.put(f, _id = f'{filename}', rows = df.shape[0])
                             os.remove(f'{filename}.parquet')
+
+                        print("{:5}".format(str(i)+".") + f"{file}")
+                        i+=1
+
                 break       #only scan the root directory
 
         except Exception as e:
