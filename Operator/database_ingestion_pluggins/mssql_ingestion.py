@@ -65,6 +65,7 @@ def ingest(package):
         cursor.executemany(insert_query_, df.values.tolist())
 
     conn.close()
+    print(f"Finish ingesting f{table_name} to MSSQL")
 
 
 def mssql_ingest(dfs, conn_str, db_name, schema, concurrency = True):

@@ -15,17 +15,17 @@ if __name__ == "__main__":
                         description= """
                         Query tool for MongoDB GridFS. 
                         -------------------------------------
-                        Specify action to perform with argument -a (--action):
+                        Specify operation to perform with argument -o (--operation):
                             - find: to print/get a list of filenames in database. Optionally, provide -p option to specify a pattern according to which matching files are listed. If -p is not provided, all files will be listed. 
 
-                            - export: export files from MongodDB GridFS. Upon choosing this action, provide -e option to specify exported file format, as well as -p option to specify a pattern  according to which matching files are exported
+                            - export: export files from MongodDB GridFS. Upon choosing this operation, provide -e option to specify exported file format, as well as -p option to specify a pattern  according to which matching files are exported
                             Optionally, provide -t option to specify the destination directory to dump csv/parquet files.
 
-                            - delete: delete tables from temporary Compass view. Upon choosing this action, provide -p option to specify a pattern according to which matching files are deleted.
+                            - delete: delete tables from temporary Compass view. Upon choosing this operation, provide -p option to specify a pattern according to which matching files are deleted.
 
-                            - drop: permanently drop files from MongoDB GridFS. Upon choosing this action, provide -p option to specify a pattern according to which matching files are dropped.
+                            - drop: permanently drop files from MongoDB GridFS. Upon choosing this operation, provide -p option to specify a pattern according to which matching files are dropped.
 
-                            - ingest: ingest a list of parquet/csv files in a directory into the Database. Upon choosing this action, provide -s option to specify a directory containing the files. 
+                            - ingest: ingest a list of parquet/csv files in a directory into the Database. Upon choosing this operation, provide -s option to specify a directory containing the files. 
                             An optional argument -p can be provided to specify a pattern so that only parquet/csv files matching the pattern will be ingested. All parquet/csv files will be ingested 
                             if -p option is not provided. If csv files are used for ingestion, all columns are of type str.
                         """)
@@ -44,30 +44,31 @@ if __name__ == "__main__":
     ap.add_argument("--password",help="Password corresponding to --username provided. This overrides the password in the configuration file (--configuration)")
 
     ap.add_argument("-f","--configuration",
-                    help="Path to onfiguration file containing connection string and database name.")
+                    help="Path to configuration file containing connection string and database name.")
 
-    ap.add_argument("-a", "--action", choices=['find','export','delete', 'drop', 'ingest'], required= True, \
-                    help="Action to perform on database.")
+    ap.add_argument("-o", "--operation", choices=['find','export','delete', 'drop', 'ingest'], required= True, \
+                    help="operation to perform on database.")
 
-    ap.add_argument("-p", "--pattern", help="Specify pattern (Python regex) for actions 'find'/'export'/'drop'/'delete'. The regex used here is different from that used in Mongo shell and Compass.")
+    ap.add_argument("-p", "--pattern", help="Specify pattern (Python regex) for operations 'find'/'export'/'drop'/'delete'. The regex used here is different from that used in Mongo shell and Compass.")
 
     ap.add_argument("-e", "--export_format", choices=['csv', 'parquet', 'compass', 'df', 'mssql'], 
-                    help="Specify the format for actions 'export': csv, parquet, compass (to view file on MongoDB Compass), df (a list of dfs and filenames, to be used in other script) or mssql (create table in MSSQL Server)")
+                    help="Specify the format for operations 'export': csv, parquet, compass (to view file on MongoDB Compass), df (a list of dfs and filenames, to be used in other script) or mssql (create table in MSSQL Server)")
                 
     ap.add_argument("-t", "--target_directory",
-                    help="Specify the target directory to dump csv/parquet files for actions 'export', default is the module source directory.")
+                    help="Specify the target directory to dump csv/parquet files for operations 'export', default is the module source directory.")
 
-    ap.add_argument("-s", "--source", help="Specify source for action 'ingest'. Source is a directory containing parquet/csv files for ingestion.")
+    ap.add_argument("-s", "--source", help="Specify source for operation 'ingest'. Source is a directory containing parquet/csv files for ingestion.")
 
+    ap.add_argument("-l", "--limit", type= int, help="Specify the number of affected files for operations: 'find', 'export', 'delete', 'drop'. If no limit was specified, all files are affected.")
     
     args = vars(ap.parse_args())
 
-    #arguments validation
+    # Connection-related arguments validation
     config_path = args['configuration']
     mongodb_conn_str_ = args['connection_string']
     db_name_ = args['database']
     bucket_ = args['bucket']
-    action = args['action']
+    operation = args['operation']
     username_ = args['username']
     password_ = args['password']
 
@@ -91,19 +92,24 @@ if __name__ == "__main__":
         username = config['CONNECTION']['username'] if username_ is None else username_
         password = config['CONNECTION']['password'] if password_ is None else password_
 
-    if action == 'export' and (args['export_format'] is None or args['pattern'] is None):
-        print("When choosing 'export' action, provide -e option to specify the exported format , as well as -p option to specify a pattern.")
+    # General operation-related arguments validation
+    pattern = args['pattern']
+    limit = args['limit']
+
+    if operation == 'export' and (args['export_format'] is None or pattern is None):
+        print("When choosing 'export' operation, provide -e option to specify the exported format , as well as -p option to specify a pattern.")
         sys.exit(0)
-    if action == 'delete' and args['pattern'] is None:
-        print("When choosing 'delete' action, provide -p option to specify a pattern.")
+    if operation == 'delete' and pattern is None:
+        print("When choosing 'delete' operation, provide -p option to specify a pattern.")
         sys.exit(0)
-    if action == 'drop' and args['pattern'] is None:
-        print("When choosing 'drop' action, provide -p option to specify a pattern.")
+    if operation == 'drop' and pattern is None:
+        print("When choosing 'drop' operation, provide -p option to specify a pattern.")
         sys.exit(0)
-    if action == 'ingest' and args['source'] is None:
-        print("When choosing 'ingest' action, provide -s option to specify source.")
+    if operation == 'ingest' and args['source'] is None:
+        print("When choosing 'ingest' operation, provide -s option to specify source.")
         sys.exit(0)
 
+    # Connecting to MongoDB Server
     if username == "" or password == "":
         client = MongoClient(mongodb_conn_str)
     else:
@@ -111,13 +117,12 @@ if __name__ == "__main__":
 
     db = client[db_name]
 
-    if action == 'find':
-        pattern = args['pattern']
-        if pattern is None:
-            pattern = '.*'
-        find(db, bucket, pattern)
+    # Specific operation-related arguments validaton and processing
+    if operation == 'find':
+        pattern = pattern if pattern is not None else '.*'
+        find(db, bucket, pattern, limit= limit)
 
-    elif action == 'export':
+    elif operation == 'export':
         target_directory = args['target_directory']
         if target_directory is None:
             target_directory = os.getcwd()
@@ -132,18 +137,15 @@ if __name__ == "__main__":
                     "concurrency" : True if config['MSSQL_INGESTION']['concurrency'] == 'True' else False,
                     "ingest_function" : mssql_ingest
                     }
-        pattern = args['pattern']
-        export(db, bucket, export_format, pattern, target_directory, **db_args)
+        export(db, bucket, export_format, pattern, target_directory, limit= limit, **db_args)
 
-    elif action == 'delete':
-        pattern = args['pattern']
-        delete(db, bucket, pattern)
+    elif operation == 'delete':
+        delete(db, bucket, pattern, limit = limit)
 
-    elif action == 'drop':
-        pattern = args['pattern']
-        drop(db, bucket, pattern)
+    elif operation == 'drop':
+        drop(db, bucket, pattern, limit = limit)
 
-    elif action == 'ingest':
+    elif operation == 'ingest':
         source = args['source']
-        pattern = args['pattern'] if args['pattern'] is not None else '.*'
+        pattern = pattern if pattern is not None else '.*'
         ingest(db, bucket, source, pattern)

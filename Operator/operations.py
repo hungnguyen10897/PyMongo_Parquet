@@ -8,7 +8,7 @@ import pandas as pd
 
 
 
-def find(db, bucket, pattern='.*', target_directory=os.getcwd(), limit=None, take_empty=True, sort='asc'):
+def find(db, bucket, pattern='.*', limit=None, take_empty=True, sort='asc', print_output = True):
     i = 1
     pipeline = [{'$match' : {"_id": {'$regex' : pattern}}}]
 
@@ -22,15 +22,16 @@ def find(db, bucket, pattern='.*', target_directory=os.getcwd(), limit=None, tak
     pipeline.append({'$sort' : {'_id' : sort_order}})
 
     if limit is not None:
-        pipeline.append({'$limit' : limit})
+        pipeline.append({'$limit' : int(limit)})
     
     pipeline.append({'$project' : {"_id" : 1}})
     res = db[bucket].files.aggregate(pipeline)
     list_res = list(map( lambda x: list(x.values())[0].split('.')[0], res))
 
-    for file in list_res:
-        print("{:5}".format(str(i)+".") + file)
-        i+=1
+    if print_output:
+        for file in list_res:
+            print("{:5}".format(str(i)+".") + file)
+            i+=1
 
     return list_res
 
@@ -93,14 +94,21 @@ def export(db, bucket, export_format, pattern, target_directory = os.getcwd(), l
             mssql_ingest(dfs, mssql_conn_str, database_name, schema, concurrency)
 
 
-def delete(db, bucket, pattern):
-    filenames = find(db, bucket, pattern)
+def delete(db, bucket, pattern, limit = None):
+    filenames = find(db, bucket, pattern, limit= limit, print_output= False)
+    print(f"Deleting these snapshots (only for viewing in MongoDB Compass) from Database {db.name}:")
+    collections = db.list_collection_names()
+    i = 1
     for filename in filenames:
-        db.drop_collection(filename)
+        if filename in collections:
+            print("{:5}".format(str(i)+".") + f"{filename}")
+            db.drop_collection(filename)
+            i+=1
 
 
-def drop(db, bucket, pattern):
-    filenames = find(db, bucket, pattern)
+def drop(db, bucket, pattern, limit = None):
+    print(f"Permanently dropping these snapshots from MongoDB GridFS {db.name}.{bucket.bucket_name}:")
+    filenames = find(db, bucket, pattern, limit = limit, print_output= True)
     for filename in filenames:
         fs = GridFS(db, collection= bucket)
         fs.delete(filename)
