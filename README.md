@@ -2,6 +2,7 @@
 
 The module uses  [pymongo](https://pypi.org/project/pymongo/) to interact with [MongoDB GridFS](https://docs.mongodb.com/manual/core/gridfs/) which stores parquet files. It can handle csv, parquet files or directly pandas DataFrame when using within another python script.
 
+This project uses Python 3.6.7 64-bit.
 
 ## Objectives/  Use case
 #### Motivation
@@ -19,9 +20,9 @@ Firstly, [Apache Parquet](https://parquet.apache.org/) (columnar storage) file f
 
 Second, having the parquet files available, there must be a way to effectively store and retrieve the files. These snapshots' data are never updated. The whole snapshots themselves are inserted and retrieved while only their metadata are queried.
 
-For that, **MongoDB GridFS** is really good. GridFS separates the parquet files access into accessing the metadata (_id or name of the snapshot, uploadDate...) which can be added per user need and accessing the real underlying data. This allows for querying metadata without the burden of the actual data. **GridFS** eliminates the constraint of 16MB document size of **MongoDB** by dividing the input file into 255KB chunks. 
+For that, **MongoDB GridFS** is really good. **GridFS** separates the parquet files access into accessing the metadata (_id or name of the snapshot, uploadDate...) which can be added per user need and accessing the real underlying data. This allows for querying metadata without the burden of the actual data. **GridFS** eliminates the constraint of 16MB document size of **MongoDB** by dividing the input file into 255KB chunks. 
 
-The idea is to turn all input snapshots into parquet files and then ingest them into MongoDB GridFS in the form of binary data. This is done using Python. Conversely, reading data out involves writing the binary data into a parquet file.
+The idea is to turn all input snapshots into parquet files and then ingest them into **MongoDB GridFS** in the form of binary data. This is done using Python. Conversely, reading data out involves writing the binary data into a parquet file.
 
 
 
@@ -31,6 +32,14 @@ This module uses [pyarrow](https://pypi.org/project/pyarrow/) to deal with parqu
 ```pip install pymongo```
 
 ```pip install pyarrow```
+
+If use need to use MSSQL ingestion plugin:
+
+```pip install numpy```
+
+```pip install pandas```
+
+```pip install pyodbc```
 
 or using requirements.txt file from the repo
 
@@ -43,35 +52,37 @@ This can be used either as a command line python script or as a module in anothe
 
 **Using as a command line python script**  
 
-To display a list of help for arguments and options.
+To display a list of help for the operations and options.
 
 ```
-python mongodb_gridfs_operator.py
-usage: mongodb_gridfs_operator.py [-h] [-c CONNECTION_STRING] [-d DATABASE]
-                                  [-b BUCKET] [-f CONFIGURATION] -a
-                                  {find,export,delete,drop,ingest}
-                                  [-p PATTERN] [-e {csv,parquet,compass,df}]
-                                  [-t TARGET_DIRECTORY] [-s SOURCE]
+python mongodb_gridfs_operator.py -h
+usage: mongodb_gridfs_operator.py [-h] [-f CONFIGURATION]
+                                  [-c CONNECTION_STRING] [-d DATABASE]
+                                  [-b BUCKET] [-u USERNAME] [-pw PASSWORD]
+                                  {find,export,ingest,delete,drop} ...
 
-                        Query tool for MongoDB GridFS.
-                        -------------------------------------
-                        Specify action to perform with argument -a (--action):
-                            - find: to print/get a list of filenames in database. Optionally, provide -p option to specify a pattern according to which matching files are listed. If -p is not provided, all files will be listed.
+                        Python operator for MongoDB GridFS.
 
-                            - export: export files from MongodDB GridFS. Upon choosing this action, provide -e option to specify exported file format, as well as -p option to specify a pattern  according to which matching files are exported
-                            Optionally, provide -t option to specify the destination directory to dump csv/parquet files.
 
-                            - delete: delete tables from temporary Compass view. Upon choosing this action, provide -p option to specify a pattern according to which matching files are deleted.
-
-                            - drop: permanently drop files from MongoDB GridFS. Upon choosing this action, provide -p option to specify a pattern according to which matching files are dropped.
-
-                            - ingest: ingest a list of parquet/csv files in a directory into the Database. Upon choosing this action, provide -s option to specify a directory containing the files.
-                            An optional argument -p can be provided to specify a pattern so that only parquet/csv files matching the pattern will be ingested. All parquet/csv files will be ingested
-                            if -p option is not provided. If csv files are used for ingestion, all columns are of type str.
-
+positional arguments:
+  {find,export,ingest,delete,drop}
+                        Operations: <operation> --help for additional help
+    find                print and obtain a list of filenames in database.
+    export              export files from MongodDB GridFS.
+    ingest              ingest parquet/csv files in a directory into the
+                        Database. If csv files are used for ingestion, all
+                        columns are of type str.
+    delete              delete collections from temporary Compass view.
+    drop                permanently drop files from MongoDB GridFS.
 
 optional arguments:
   -h, --help            show this help message and exit
+  -f CONFIGURATION, --configuration CONFIGURATION
+                        Path to configuration file containing connection
+                        string, database name, GridFS bucket name, username
+                        and password. If not provided, the program will try to
+                        read from a 'config.cfg' file from the working
+                        directory.
   -c CONNECTION_STRING, --connection_string CONNECTION_STRING
                         Connection string to MongoDB Server. This overrides
                         the connection string in the configuration file
@@ -85,36 +96,58 @@ optional arguments:
                         a database) name in the database. This overrides the
                         bucket name in the configuration file
                         (--configuration) if provided.
-  -f CONFIGURATION, --configuration CONFIGURATION
-                        Path to onfiguration file containing connection string
-                        and database name.
-  -a {find,export,delete,drop,ingest}, --action {find,export,delete,drop,ingest}
-                        Action to perform on database.
+  -u USERNAME, --username USERNAME
+                        Username to authenticate to MongoDB database. This
+                        overrides the username in the configuration file
+                        (--configuration)
+  -pw PASSWORD, --password PASSWORD
+                        Password corresponding to --username provided. This
+                        overrides the password in the configuration file
+                        (--configuration)
+```
+
+Operations are implemented as subcommands of the main script. For detail help of each operation call the subcommand with -h.
+
+E.g show help for operation export:
+
+```
+python mongodb_gridfs_operator.py export -h
+
+usage: mongodb_gridfs_operator.py export [-h] -e
+                                         {csv,parquet,compass,df,mssql} -p
+                                         PATTERN [-t TARGET_DIRECTORY]
+                                         [-l LIMIT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -e {csv,parquet,compass,df,mssql}, --export_format {csv,parquet,compass,df,mssql}
+                        exported file format: csv/parquet files are written to
+                        disk, 'compass' will create a collection for each file
+                        in MongoDB to view the data. 'df' will return a list
+                        of tuple of type (DataFrame, filename). 'mssql'
+                        exports the files to SQL Server whose connection is
+                        specified in config.cfg section [MSSQL CONNECTION]
   -p PATTERN, --pattern PATTERN
-                        Specify pattern (Python regex) for actions
-                        'find'/'export'/'drop'/'delete'. The regex used here
-                        is different from that used in Mongo shell and
-                        Compass.
-  -e {csv,parquet,compass,df}, --export_format {csv,parquet,compass,df}
-                        Specify the format for actions 'export': csv, parquet,
-                        compass(to view file on MongoDB Compass)
+                        a pattern according to which matching files are
+                        exported.
   -t TARGET_DIRECTORY, --target_directory TARGET_DIRECTORY
-                        Specify the target directory to dump csv/parquet files
-                        for actions 'export', default is the module source
-                        directory.
-  -s SOURCE, --source SOURCE
-                        Specify source for action 'ingest'. Source is a
-                        directory containing parquet/csv files for ingestion.
+                        destination directory to dump csv/parquet files.
+  -l LIMIT, --limit LIMIT
+                        number of files exported. If no limit is specified,
+                        all collections matching the pattern (-p) are
+                        exported.
 ```
 
-To start using this script, a connection to MongoDB Server must be specified either at a configuration file and provide the file with -f or by using -c, -d, -b options.
+<br/>
 
-Furthermore, an action (-a) is chosen and provided with suitable options and arguments (-p, -s, -t, -e)
+  To start using this script, a connection to MongoDB Server must be specified either via a configuration file (-f, --configuration) or by using -c, -d, -b, -u, -pw arguments. Without providing -f argument, the program looks for a 'config.cfg' file at the same directory with the script.
+
+These arguments have to be specifed before a subcommand and its specific arguments.
 <br/>
 <br/>
-  To list all files in this bucket
+  To list all files in this bucket.
 ```
-python mongodb_gridfs_operator.py -f config.cfg -a find
+python mongodb_gridfs_operator.py -f PATH/TO/config.cfg find
 1.   REPL_FCO_DOC_HEAD_G4_1569805944
 2.   REPL_FCO_DOC_POS_G4_1569805983
 3.   REPL_LQUA_G0_1569805641
@@ -132,10 +165,10 @@ python mongodb_gridfs_operator.py -f config.cfg -a find
 <br/>
 <br/>
 
-  To export files with names of pattern 'G4' into Compass for viewing
+  To export files with names of pattern 'G4' into Compass for viewing using default connection
   
 ```
-python mongodb_gridfs_operator.py -f config.cfg -a export -e compass -p .*G4.*
+python mongodb_gridfs_operator.py export -e compass -p .*G4.*
 ```
 MongoDB comes with [Compass](https://www.mongodb.com/products/compass), a visual/ analytic tool to view your data. However, only the metadata makes sense in Compass since we store the actual data in form of binary of parquet files. The collection containing metadata is: your_database_name/ your_bucket_name/ files. In my case, myDB/ fs/ files:
 
