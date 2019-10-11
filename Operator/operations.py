@@ -9,6 +9,24 @@ import pandas as pd
 
 
 def find(db, bucket, pattern='.*', limit=None, take_empty=True, sort='asc', print_output = True):
+    """
+        To find and print a set of filenames from MongoDB GridFS.
+        Parameters
+        ----------
+            db: pymongo.database.Database 
+                Connection to a Database from MongoDB
+            bucket: str
+                the name of the interacting bucket.
+            pattern: str, optional
+                a regex pattern to match file name.
+            limit: int/None
+                limit of the number of filenames listed/printed.
+        
+        Returns
+        -------
+            list_res: 
+                a list of filenames matching argument pattern.
+    """
     i = 1
     pipeline = [{'$match' : {"_id": {'$regex' : pattern}}}]
 
