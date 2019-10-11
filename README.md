@@ -4,7 +4,7 @@ The module uses  [pymongo](https://pypi.org/project/pymongo/) to interact with [
 
 This project uses Python 3.6.7 64-bit.
 
-## Objectives/  Use case
+## Objectives/Use case
 #### Motivation
 
 In our situation, we need to capture snapshots from a couple of large tables from our data lake every 5 minutes. These snapshots/tables, originally stored on a database of MSSQL Server, can easily exceeds 28MB in space usage for each of them accumulates quickly to a certain amount of table objects in the database which slows down the Server significantly, especially when querying on SSMS.
@@ -50,7 +50,7 @@ or using requirements.txt file from the repo
 
 This can be used either as a command line python script or as a module in another python script.
 
-**Using as a command line python script**  
+**Using as a command line python prograrm**  
 
 To display a list of help for the operations and options.
 
@@ -147,7 +147,7 @@ These arguments have to be specifed before a subcommand and its specific argumen
 <br/>
   To list all files in this bucket.
 ```
-python mongodb_gridfs_operator.py -f PATH/TO/config.cfg find
+python mongodb_gridfs_operator.py -f PATH/TO/CONFIG_FILE find
 1.   REPL_FCO_DOC_HEAD_G4_1569805944
 2.   REPL_FCO_DOC_POS_G4_1569805983
 3.   REPL_LQUA_G0_1569805641
@@ -170,7 +170,7 @@ python mongodb_gridfs_operator.py -f PATH/TO/config.cfg find
 ```
 python mongodb_gridfs_operator.py export -e compass -p .*G4.*
 ```
-MongoDB comes with [Compass](https://www.mongodb.com/products/compass), a visual/ analytic tool to view your data. However, only the metadata makes sense in Compass since we store the actual data in form of binary of parquet files. The collection containing metadata is: your_database_name/ your_bucket_name/ files. In my case, myDB/ fs/ files:
+MongoDB comes with [Compass](https://www.mongodb.com/products/compass), a visual/analytic tool to view your data. However, only the metadata makes sense in Compass since we store the actual data in form of binary of parquet files. The collection containing metadata is: your_database_name/your_bucket_name/files. In my case, myDB/fs/files:
 
 ![alt text](https://github.com/hungnguyen10897/PyMongo_Parquet/blob/master/Images/Capture0.PNG "Compass capture 1")
 <br/>
@@ -184,10 +184,10 @@ MongoDB comes with [Compass](https://www.mongodb.com/products/compass), a visual
 <br/>
 <br/>
 <br/>
-  To delete all these temporary snapshots on MongoDB which are only meant to be viewed on Compass
+  To delete the first 10 snapshots on MongoDB which are only meant to be viewed on Compass
 
 ```
-python mongodb_gridfs_operator.py -f config.cfg -a delete -p .*
+python mongodb_gridfs_operator.py delete -p .* -l 10
 ```
 
 Now the database no longer contains the temporary snapshots.  
@@ -197,7 +197,7 @@ Now the database no longer contains the temporary snapshots.
   To permanently drop files of certain pattern
 
 ```
-python mongodb_gridfs_operator.py -f config.cfg -a drop -p .*G0.*
+python mongodb_gridfs_operator.py drop -p .*G0.*
 ```
 
 <br/>
@@ -205,8 +205,22 @@ python mongodb_gridfs_operator.py -f config.cfg -a drop -p .*G0.*
   To ingest some csv files with a certain pattern in a directory, we pass that directory path to -s/ --source option.
   
 ```
-python mongodb_gridfs_operator.py -f config.cfg -a ingest -s /home/hung/csv_folder -p .*G0.*
+python mongodb_gridfs_operator.py ingest -s /home/hung/csv_folder -p .*G0.*
 ```
+<br/>
+<br/>
+
+**Using as a module in another Python prograrm**  
+
+Other Python programs can utilize this project as module by accessing directly the operations. These are defined in Operator/operattions.py, which includes 5 functions for 5 operations (find, export, ingest, delete, drop).
+
+The functionalities of the operations are generally the same. Certain arguments are required for all operations: 
+  - db: a pymongo.database.Database object representing connection to a Database.
+  - bucket: string of the name of the interacting bucket.
+
+And there are operation-specific arguments.
+  
+
 
 ## Further Improvement
 - MongoDB Server authentication: This module accesses the server using only the Host Address, database name and bucket name of the GridFS. More type of authentication can be extended (username, password) and further checking for existence of database or bucket can be implemented. For example, another flag must be specify so that new databases/buckets are created if they do not exist already or else an error is thrown.
